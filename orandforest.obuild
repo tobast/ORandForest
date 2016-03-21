@@ -1,0 +1,11 @@
+name: ORandForest
+version: 0.1
+description: This project aims to provide a pure OCaml implementation of a random forest classifier.
+licence: LGPLv3
+obuild-ver: 1
+authors: Théophile Bastian <contact@tobast.fr>, Noémie Fong
+homepage: https://github.com/tobast/ORandForest/
+library ORandForest
+  modules: ORandForest
+  src-dir: src
+  build-deps: OC45
