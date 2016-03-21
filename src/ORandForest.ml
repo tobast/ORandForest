@@ -21,7 +21,9 @@
  *****************************************************************************)
 
 (********************* DATA TYPES ********************************************)
-type randomForest = Oc45.decisionTree array
+module IMap = Map.Make(struct type t=int let compare = compare end)
+type featureMap = int IMap.t
+type randomForest = (Oc45.decisionTree * featureMap) array
 (***************** END DATA TYPES ********************************************)
 open Oc45
 
@@ -34,8 +36,11 @@ let (<|>) a b =
 			else span (b-1) (b::cur)
 	in span (b-1) []
 
+let randPick l =
+	let card = List.length l in
+	let elt = Random.int card in
+	List.nth l elt
 
-module IMap = Map.Make(struct type t=int let compare = compare end)
 let majorityVote (l : int list) =
 	(** Returns the most present value in l. If the maximum is not unique,
 		returns an arbitrary value among the possible ones. *)
@@ -43,65 +48,68 @@ let majorityVote (l : int list) =
 		(fun map x -> IMap.add x
 			((try IMap.find x map with Not_found -> 0) + 1) map)
 		IMap.empty l in
-	let _,maxarg = IMap.fold (fun arg v (cMax,cArg) ->
-		if v > cMax then (v,arg) else (cMax,cArg)) counts (-1,-1) in
-	maxarg
+	let cMax,maxarg = IMap.fold (fun arg v (cMax,cArg) ->
+			if v > cMax then
+				(v,[arg])
+			else if v = cMax then
+				(v,arg::cArg)
+			else
+				(cMax,cArg))
+		counts (-1,[]) in
+	assert (maxarg <> []) ;
+	randPick maxarg
 
-let classify forest data =
-	let votesList = List.fold_left (fun cur x ->
-		(Oc45.classify x data)::cur) [] forest in
+let remapData featMap data =
+	let out = Array.make (IMap.cardinal featMap) data.(0) in
+	IMap.iter (fun from dest ->
+		out.(dest) <- data.(from)) featMap ;
+	out
+
+let classify (forest: randomForest) data =
+	let votesList = Array.fold_left (fun cur (tree,ftMap) ->
+		(Oc45.classify tree (remapData ftMap data))::cur) [] forest in
 	majorityVote votesList
 
-let genRandomForest nbTrees (trainset : Oc45.trainSet) =
+let genRandomForest nbTrees (trainset : Oc45.trainSet) : randomForest =
 	let trainDataArray = Array.of_list (Oc45.getSet trainset) in
 	let randSubsetOf superSize subSize =
-		let selected = Array.make superSize false in
-		let rec elim = function
-		| 0 -> ()
+		let rec sel selected = function
+		| 0 -> selected
 		| k ->
 			let el = Random.int superSize in
-			if selected.(el) then
-				elim k
-			else begin
-				selected.(el) <- true;
-				elim (k-1)
-			end
+			if IMap.mem el selected then
+				sel selected k
+			else
+				sel (IMap.add el (k-1) selected) (k-1)
 		in
-		elim (superSize-subSize) ;
-		selected
+		sel IMap.empty subSize
 	in
-	let arraySubset arr selector nbSel =
-		let out = Array.make nbSel arr.(0) in
-		let cPos = ref 0 in
-		Array.iteri (fun i v -> (match selector.(i) with
-			| true ->
-				out.(!cPos) <- v ;
-				cPos := !cPos + 1
-			| false -> ())) arr;
-		out
-	in
-	let selectFeatureSubset (trList : Oc45.trainVal list) =
+	let selectFeatureSubset (trList : Oc45.trainVal list) featCont =
 		let subsize = int_of_float (sqrt (float_of_int
 			(Oc45.getNbFeatures trainset))) in
 		let selected = randSubsetOf (Oc45.getNbFeatures trainset) subsize in
-		List.fold_left (fun cur x ->
-			{ x with data = arraySubset x.data selected subsize}::cur )
-			[] trList
+		(List.fold_left (fun cur x ->
+				{ x with data = remapData selected x.data}::cur )
+				[] trList),
+			(remapData selected featCont),
+			selected
 	in
 	let generateTree () =
 		let nTrainList = List.fold_left (fun cur _ ->
 				let sample = Random.int (Array.length trainDataArray) in
 				(trainDataArray.(sample)) :: cur)
 			[] (0<|> (Array.length trainDataArray)) in
-		let trainList = selectFeatureSubset nTrainList in
+		let trainList, nFeat, featMap = selectFeatureSubset nTrainList
+			(Oc45.getFeatContinuity trainset) in
 
-		List.fold_left (fun cur x -> Oc45.addData x cur)
+		let nTrainSet = List.fold_left (fun cur x -> Oc45.addData x cur)
 			(Oc45.emptyTrainSet
 				(Array.length ((List.hd trainList).data))
 				(Oc45.getNbCategories trainset)
-				(Oc45.getFeatContinuity trainset))
-			trainList
+				nFeat)
+			trainList in
+		Oc45.c45 nTrainSet, featMap
 	in
 
-	Array.init nbTrees (fun _ -> generateTree ())
+	Array.init nbTrees (fun i -> generateTree ())
 	
