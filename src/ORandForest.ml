@@ -20,8 +20,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************)
 
+module type S = sig
+	type c45_data
+	type c45_category
+	type c45_trainSet
+	type randomForest
+
+	val classify : randomForest -> c45_data -> c45_category
+	val genRandomForest : int -> c45_trainSet -> randomForest
+end
+
 module Make(X: Oc45.S) = struct
 	(***************** DATA TYPES ********************************************)
+	type c45_data = X.data
+	type c45_category = X.category
+	type c45_trainSet = X.trainSet
+
 	module IMap = Map.Make(struct type t=int let compare = compare end)
 	type featureMap = int IMap.t
 	type randomForest = (X.decisionTree * featureMap) array
