@@ -115,15 +115,18 @@ module Make(X: Oc45.S) = struct
 					let sample = Random.int (Array.length trainDataArray) in
 					(trainDataArray.(sample)) :: cur)
 				[] (0<|> (Array.length trainDataArray)) in
-			let trainList, nFeat, featMap = selectFeatureSubset nTrainList
+			let trainList, nCont, featMap = selectFeatureSubset nTrainList
 				(X.getFeatContinuity trainset) in
 
 			let nTrainSet = List.fold_left (fun cur x -> X.addData x cur)
 				(X.emptyTrainSet
 					(Array.length ((List.hd trainList).data))
 					(X.getNbCategories trainset)
-					nFeat)
+					nCont)
 				trainList in
+            let ftMaxArray = X.getFeatureMax trainset in
+            IMap.iter (fun ft dest ->
+                    X.setFeatureMax dest ftMaxArray.(ft) nTrainSet) featMap;
 			X.c45 nTrainSet, featMap
 		in
 
