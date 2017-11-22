@@ -1,0 +1,21 @@
+opam-version: "1.2"
+name: "OC45"
+authors: "Théophile Bastian <contact@tobast.fr> and Noémie Fong"
+maintainer: "contact@tobast.fr"
+homepage: "https://github.com/tobast/ORandForest"
+bug-reports: "https://github.com/tobast/ORandForest/issues"
+dev-repo: "https://github.com/tobast/ORandForest.git"
+license: "LGPL"
+build: [
+  ["jbuilder" "build" "@install"]
+]
+install: [
+  ["jbuilder" "install"]
+]
+remove: [
+  ["ocamlfind" "remove" "orandforest"]
+]
+depends: [
+  "jbuilder" {build}
+  "oc45"
+]
