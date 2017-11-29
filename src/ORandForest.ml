@@ -10,12 +10,12 @@
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************)
@@ -27,7 +27,7 @@ module type S = sig
 	type randomForest
 
 	val classify : randomForest -> c45_data -> c45_category
-	val genRandomForest : int -> c45_trainSet -> randomForest
+	val genRandomForest : ?ncores:int -> int -> c45_trainSet -> randomForest
 end
 
 module Make(X: Oc45.S) = struct
@@ -85,7 +85,7 @@ module Make(X: Oc45.S) = struct
 			(X.classify tree (remapData ftMap data))::cur) [] forest in
 		majorityVote votesList
 
-	let genRandomForest nbTrees (trainset : X.trainSet) : randomForest =
+	let genRandomForest ?(ncores = 1) nbTrees (trainset : X.trainSet) : randomForest =
 		let trainDataArray = Array.of_list (X.getSet trainset) in
 		let randSubsetOf superSize subSize =
 			let rec sel selected = function
@@ -109,29 +109,34 @@ module Make(X: Oc45.S) = struct
 					[] trList),
 				(remapData selected featCont),
 				selected
-		in
-		let generateTree () =
-			let nTrainList = List.fold_left (fun cur _ ->
-					let sample = Random.int (Array.length trainDataArray) in
-					(trainDataArray.(sample)) :: cur)
-				[] (0<|> (Array.length trainDataArray)) in
-			let trainList, nCont, featMap = selectFeatureSubset nTrainList
-				(X.getFeatContinuity trainset) in
+                in
+      let generateTree () =
+      let nTrainList = List.fold_left (fun cur _ ->
+	  let sample = Random.int (Array.length trainDataArray) in
+	  (trainDataArray.(sample)) :: cur)
+	  [] (0<|> (Array.length trainDataArray)) in
+      let trainList, nCont, featMap = selectFeatureSubset nTrainList
+	  (X.getFeatContinuity trainset) in
 
-			let nTrainSet = List.fold_left (fun cur x -> X.addData x cur)
-				(X.emptyTrainSet
-					(Array.length ((List.hd trainList).data))
-					(X.getNbCategories trainset)
-					nCont)
-				trainList in
-            let ftMaxArray = X.getFeatureMax trainset in
-            IMap.iter (fun ft dest ->
-                    X.setFeatureMax dest ftMaxArray.(ft) nTrainSet) featMap;
-			X.c45 nTrainSet, featMap
-		in
+      let nTrainSet = List.fold_left (fun cur x -> X.addData x cur)
+	  (X.emptyTrainSet
+	     (Array.length ((List.hd trainList).data))
+	     (X.getNbCategories trainset)
+	     nCont)
+	  trainList in
+      let ftMaxArray = X.getFeatureMax trainset in
+      IMap.iter (fun ft dest ->
+          X.setFeatureMax dest ftMaxArray.(ft) nTrainSet) featMap;
+      X.c45 nTrainSet, featMap
+      in
+      if ncores > 1 then
+        let units = Array.make nbTrees () in
+        Parmap.array_parmap
+          ~init:(fun _child_rank -> Random.self_init ())
+          ~ncores ~chunksize:1 generateTree units
+      else
+        Array.init nbTrees (fun i -> generateTree ())
 
-		Array.init nbTrees (fun i -> generateTree ())
-		
 	end
 
 module IntRandForest = Make(Oc45.IntOc45)

@@ -8,4 +8,4 @@ homepage: https://github.com/tobast/ORandForest/
 library ORandForest
   modules: ORandForest
   src-dir: src
-  build-deps: OC45
+  build-deps: oc45, parmap
