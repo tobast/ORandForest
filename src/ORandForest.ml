@@ -28,6 +28,7 @@ module type S = sig
 
   val genRandomForest: ?ncores:int -> int -> c45_trainSet -> randomForest
   val classify: randomForest -> c45_data -> c45_category
+  val classify_raw: randomForest -> c45_data -> (c45_category * float) list
 
   val save_to_file: string -> randomForest -> unit
   val restore_from_file: string -> randomForest
@@ -87,6 +88,12 @@ module Make(X: Oc45.S) = struct
     let elt = Random.int card in
     List.nth l elt
 
+  let remapData featMap data =
+    let out = Array.make (IMap.cardinal featMap) data.(0) in
+    IMap.iter (fun from dest ->
+	out.(dest) <- data.(from)) featMap ;
+    out
+
   let majorityVote (l : int list) =
     (** Returns the most present value in l. If the maximum is not unique,
 	returns an arbitrary value among the possible ones. *)
@@ -105,16 +112,33 @@ module Make(X: Oc45.S) = struct
     assert (maxarg <> []) ;
     randPick maxarg
 
-  let remapData featMap data =
-    let out = Array.make (IMap.cardinal featMap) data.(0) in
-    IMap.iter (fun from dest ->
-	out.(dest) <- data.(from)) featMap ;
-    out
+  let vote_frequencies (l: int list): (c45_category * float) list =
+    (** Returns the list of classes (categories) along with
+        the percentage of votes each one got. *)
+    let total = ref 0 in
+    let vote_counts =
+      List.fold_left (fun map categ ->
+          let nb_votes = match IMap.find_opt categ map with
+            | None -> 0
+            | Some n -> n in
+          incr total;
+          IMap.add categ (nb_votes + 1) map
+        ) IMap.empty l in
+    let total_votes = float !total in
+    IMap.fold (fun categ nb_votes acc ->
+        (categ, float nb_votes /. total_votes) :: acc
+      ) vote_counts []
 
-  let classify (forest: randomForest) data =
+  let classify' defuzz (forest: randomForest) data =
     let votesList = Array.fold_left (fun cur (tree,ftMap) ->
 	(X.classify tree (remapData ftMap data))::cur) [] forest in
-    majorityVote votesList
+    defuzz votesList
+
+  let classify =
+    classify' majorityVote
+
+  let classify_raw =
+    classify' vote_frequencies
 
   let genRandomForest ?(ncores = 1) nbTrees (trainset : X.trainSet) : randomForest =
     let trainDataArray = Array.of_list (X.getSet trainset) in
