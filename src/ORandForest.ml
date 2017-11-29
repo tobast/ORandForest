@@ -26,8 +26,39 @@ module type S = sig
   type c45_trainSet
   type randomForest
 
-  val classify : randomForest -> c45_data -> c45_category
-  val genRandomForest : ?ncores:int -> int -> c45_trainSet -> randomForest
+  val genRandomForest: ?ncores:int -> int -> c45_trainSet -> randomForest
+  val classify: randomForest -> c45_data -> c45_category
+
+  val save_to_file: string -> randomForest -> unit
+  val restore_from_file: string -> randomForest
+end
+
+module Utils = struct
+  type filename = string
+
+  let with_out_file (fn: filename) (f: out_channel -> 'a): 'a =
+    let output = open_out_bin fn in
+    let res = f output in
+    close_out output;
+    res
+
+  let with_in_file (fn: filename) (f: in_channel -> 'a): 'a =
+    let input = open_in_bin fn in
+    let res = f input in
+    close_in input;
+    res
+
+  (* marshal to file *)
+  let save (fn: filename) (x: 'a): unit =
+    with_out_file fn (fun out ->
+        Marshal.to_channel out x [Marshal.No_sharing]
+      )
+
+  (* unmarshal from file *)
+  let restore (fn: filename): 'a =
+    with_in_file fn (fun input ->
+        Marshal.from_channel input
+      )
 end
 
 module Make(X: Oc45.S) = struct
@@ -136,6 +167,12 @@ module Make(X: Oc45.S) = struct
         ~ncores ~chunksize:1 generateTree units
     else
       Array.init nbTrees (fun i -> generateTree ())
+
+  let save_to_file fn model =
+    Utils.save fn model
+
+  let restore_from_file fn =
+    Utils.restore fn
 
 end
 
