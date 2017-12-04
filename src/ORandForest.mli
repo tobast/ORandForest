@@ -43,8 +43,11 @@ module type S = sig
 
   val classify_raw: randomForest -> c45_data -> (c45_category * float) list
   (** Like [classify] but gives access to the percentage of votes for
-      each category; which can be seen as a probability of belonging
-      to the given category. *)
+      each category.
+      After calibration of your classifier (e.g. using Platt/sigmoid scaling
+      or isotonic regression), those percentages can be converted to
+      probabilities. No calibration method is included in the library
+      currently. *)
 
   val save_to_file: string -> randomForest -> unit
   (** [save_to_file output model] saves the random forest [model]
