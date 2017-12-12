@@ -130,8 +130,19 @@ module Make(X: Oc45.S) = struct
       ) vote_counts []
 
   let classify' defuzz (forest: randomForest) data =
-    let votesList = Array.fold_left (fun cur (tree,ftMap) ->
-	(X.classify tree (remapData ftMap data))::cur) [] forest in
+    let unknow_category = min_int in
+    let votesList = Array.fold_left (fun acc (tree, ftMap) ->
+        let vote =
+          try
+            let v = X.classify tree (remapData ftMap data) in
+            (* this category is not supposed to be used by users *)
+            assert(v <> unknow_category);
+            v
+          with X.DiscreteFeatOutOfBounds (_, _) -> unknow_category
+        in
+        vote :: acc
+      ) [] forest
+    in
     defuzz votesList
 
   let classify =
