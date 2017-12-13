@@ -62,14 +62,58 @@ module Utils = struct
       )
 end
 
+(* An IMap with a constant time cardinal function
+   (and just the IMap operations we need) *)
+module CardIMap = struct
+
+  (* the IMap module is just visible here; it should not be used outside *)
+  module IMap = Map.Make(
+    struct
+      type t = int
+      (* optimized integer comparison; not generic compare *)
+      let compare (x: int) (y: int): int =
+        if x > y then 1
+        else if y > x then -1
+        else 0
+    end)
+
+  type t = { card: int;
+             map: int IMap.t}
+
+  let add k v m =
+    { card = m.card + 1;
+      map = IMap.add k v m.map }
+
+  let cardinal m =
+    m.card
+
+  let empty =
+    { card = 0;
+      map = IMap.empty }
+
+  let find k m =
+    IMap.find k m.map
+
+  let find_opt k m =
+    IMap.find_opt k m.map
+
+  let fold f m init =
+    IMap.fold f m.map init
+
+  let iter f m =
+    IMap.iter f m.map
+
+  let mem k m =
+    IMap.mem k m.map
+end
+
 module Make(X: Oc45.S) = struct
   (***************** DATA TYPES ********************************************)
   type c45_data = X.data
   type c45_category = X.category
   type c45_trainSet = X.trainSet
 
-  module IMap = Map.Make(struct type t=int let compare = compare end)
-  type featureMap = int IMap.t
+  type featureMap = CardIMap.t
   type randomForest = (X.decisionTree * featureMap) array
   (************* END DATA TYPES ********************************************)
   open X
@@ -89,8 +133,8 @@ module Make(X: Oc45.S) = struct
     List.nth l elt
 
   let remapData featMap data =
-    let out = Array.make (IMap.cardinal featMap) data.(0) in
-    IMap.iter (fun from dest ->
+    let out = Array.make (CardIMap.cardinal featMap) data.(0) in
+    CardIMap.iter (fun from dest ->
 	out.(dest) <- data.(from)) featMap ;
     out
 
@@ -98,10 +142,10 @@ module Make(X: Oc45.S) = struct
     (** Returns the most present value in l. If the maximum is not unique,
 	returns an arbitrary value among the possible ones. *)
     let counts = List.fold_left
-	(fun map x -> IMap.add x
-	    ((try IMap.find x map with Not_found -> 0) + 1) map)
-	IMap.empty l in
-    let cMax,maxarg = IMap.fold (fun arg v (cMax,cArg) ->
+	(fun map x -> CardIMap.add x
+	    ((try CardIMap.find x map with Not_found -> 0) + 1) map)
+	CardIMap.empty l in
+    let cMax,maxarg = CardIMap.fold (fun arg v (cMax,cArg) ->
 	if v > cMax then
 	  (v,[arg])
 	else if v = cMax then
@@ -118,14 +162,14 @@ module Make(X: Oc45.S) = struct
     let total = ref 0 in
     let vote_counts =
       List.fold_left (fun map categ ->
-          let nb_votes = match IMap.find_opt categ map with
+          let nb_votes = match CardIMap.find_opt categ map with
             | None -> 0
             | Some n -> n in
           incr total;
-          IMap.add categ (nb_votes + 1) map
-        ) IMap.empty l in
+          CardIMap.add categ (nb_votes + 1) map
+        ) CardIMap.empty l in
     let total_votes = float !total in
-    IMap.fold (fun categ nb_votes acc ->
+    CardIMap.fold (fun categ nb_votes acc ->
         (categ, float nb_votes /. total_votes) :: acc
       ) vote_counts []
 
@@ -158,12 +202,12 @@ module Make(X: Oc45.S) = struct
 	| 0 -> selected
 	| k ->
 	  let el = Random.int superSize in
-	  if IMap.mem el selected then
+	  if CardIMap.mem el selected then
 	    sel selected k
 	  else
-	    sel (IMap.add el (k-1) selected) (k-1)
+	    sel (CardIMap.add el (k-1) selected) (k-1)
       in
-      sel IMap.empty subSize
+      sel CardIMap.empty subSize
     in
     let selectFeatureSubset (trList : X.trainVal list) featCont =
       let subsize = int_of_float (sqrt (float_of_int
@@ -191,7 +235,7 @@ module Make(X: Oc45.S) = struct
 	     nCont)
 	  trainList in
       let ftMaxArray = X.getFeatureMax trainset in
-      IMap.iter (fun ft dest ->
+      CardIMap.iter (fun ft dest ->
           X.setFeatureMax dest ftMaxArray.(ft) nTrainSet) featMap;
       X.c45 nTrainSet, featMap
     in
