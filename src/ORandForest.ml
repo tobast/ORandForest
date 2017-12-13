@@ -73,7 +73,7 @@ module CardIMap = struct
       (* optimized integer comparison; not generic compare *)
       let compare (x: int) (y: int): int =
         if x > y then 1
-        else if y > x then -1
+        else if x < y then -1
         else 0
     end)
 
