@@ -81,7 +81,12 @@ module CardIMap = struct
              map: int IMap.t}
 
   let add k v m =
-    { card = m.card + 1;
+    let new_card =
+      if IMap.mem k m.map then
+        m.card
+      else
+        m.card + 1 in
+    { card = new_card;
       map = IMap.add k v m.map }
 
   let cardinal m =
