@@ -100,7 +100,8 @@ module CardIMap = struct
     IMap.find k m.map
 
   let find_opt k m =
-    IMap.find_opt k m.map
+    try Some (IMap.find k m.map)
+    with Not_found -> None
 
   let fold f m init =
     IMap.fold f m.map init
