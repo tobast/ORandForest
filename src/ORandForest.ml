@@ -127,7 +127,7 @@ module Make(X: Oc45.S) = struct
   let () = Random.self_init ()
 
   let (<|>) a b =
-    (** a|b : generates the list [a ; a+1 ; ... ; b-1] *)
+    (* a|b : generates the list [a ; a+1 ; ... ; b-1] *)
     let rec span b cur =
       if a = b then a::cur
       else span (b-1) (b::cur)
@@ -145,26 +145,26 @@ module Make(X: Oc45.S) = struct
     out
 
   let majorityVote (l : int list) =
-    (** Returns the most present value in l. If the maximum is not unique,
-	returns an arbitrary value among the possible ones. *)
+    (* Returns the most present value in l. If the maximum is not unique,
+       returns an arbitrary value among the possible ones. *)
     let counts = List.fold_left
 	(fun map x -> CardIMap.add x
 	    ((try CardIMap.find x map with Not_found -> 0) + 1) map)
 	CardIMap.empty l in
-    let cMax,maxarg = CardIMap.fold (fun arg v (cMax,cArg) ->
+    let _cMax, maxarg = CardIMap.fold (fun arg v (cMax,cArg) ->
 	if v > cMax then
-	  (v,[arg])
+	  (v, [arg])
 	else if v = cMax then
-	  (v,arg::cArg)
-	else
-	  (cMax,cArg))
+	  (v, arg :: cArg)
+        else
+	  (cMax, cArg))
 	counts (-1,[]) in
     assert (maxarg <> []) ;
     randPick maxarg
 
   let vote_frequencies (l: int list): (c45_category * float) list =
-    (** Returns the list of classes (categories) along with
-        the percentage of votes each one got. *)
+    (* Returns the list of classes (categories) along with
+       the percentage of votes each one got. *)
     let total = ref 0 in
     let vote_counts =
       List.fold_left (fun map categ ->
@@ -251,7 +251,7 @@ module Make(X: Oc45.S) = struct
         ~init:(fun _child_rank -> Random.self_init ())
         ~ncores ~chunksize:1 generateTree units
     else
-      Array.init nbTrees (fun i -> generateTree ())
+      Array.init nbTrees (fun _i -> generateTree ())
 
   let save_to_file fn model =
     Utils.save fn model

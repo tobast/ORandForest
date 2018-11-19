@@ -21,10 +21,13 @@
  *****************************************************************************)
 
 module type S = sig
+
   type c45_data
   (** {!Oc45.S.data} *)
+
   type c45_category
   (** {!Oc45.S.category *)
+
   type c45_trainSet
   (** {!Oc45.S.trainSet} *)
 
