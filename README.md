@@ -9,16 +9,18 @@ OC4.5 is an implementation of C4.5 that can be found
 
 ## Compiling
 
-This project uses [OBuild](https://github.com/ocaml-obuild/obuild) as a
-compilation manager.
-
-To sum up, in order to get the project running,
+This project uses dune.
+In order to compile and install from sources, run:
 
 ```bash
-    opam install obuild  # If you don't have it yet
-    obuild configure
-    obuild build
-    obuild install
+    opam install dune # If you don't have it yet
+    ./build.sh
+```
+
+There is an opam package also, if you want to install automatically.
+
+```bash
+   opam install orandforest
 ```
 
 ## Documentation
